@@ -35,11 +35,29 @@ async def enhance_image(
     user_id: str = Depends(get_user_id),
     db: Session = Depends(get_db)
 ):
+    image_bytes = await image.read()
+    logger.info(
+        "Upload received: filename=%s content_type=%s size=%d user=%s",
+        image.filename,
+        image.content_type,
+        len(image_bytes),
+        user_id
+    )
+
     if image.content_type not in settings.ALLOWED_IMAGE_TYPES:
+        logger.error(
+            "Rejected upload: content_type=%s allowed=%s",
+            image.content_type,
+            settings.ALLOWED_IMAGE_TYPES
+        )
         raise HTTPException(status_code=400, detail="Unsupported image format")
         
-    image_bytes = await image.read()
     if len(image_bytes) > settings.MAX_UPLOAD_MB * 1024 * 1024:
+        logger.error(
+            "Rejected upload: size=%d max=%d",
+            len(image_bytes),
+            settings.MAX_UPLOAD_MB * 1024 * 1024
+        )
         raise HTTPException(status_code=400, detail="File too large")
         
     image_hash = get_image_hash(image_bytes)
