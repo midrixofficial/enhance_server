@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, BackgroundTasks, Header
+from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 import uuid
 import base64
@@ -12,9 +12,8 @@ from .models import Job
 from .schemas import EnhanceJobResponse, JobStatusResponse
 from .config import settings
 from .utils import get_image_hash
-from .image_cache import get_cached_image
+from .image_cache import get_cached_image, save_cached_image
 from .runpod_client import runpod_client
-from .job_manager import job_manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -26,7 +25,6 @@ async def get_user_id(x_user_id: Optional[str] = Header(None)):
 
 @router.post("/enhance", response_model=EnhanceJobResponse)
 async def enhance_image(
-    background_tasks: BackgroundTasks,
     image: UploadFile = File(...),
     sharpen_amount: Optional[float] = Form(None),
     contrast_alpha: Optional[float] = Form(None),
@@ -50,7 +48,10 @@ async def enhance_image(
     cached_image = await get_cached_image(db, image_hash)
     if cached_image:
         logger.info(f"Cache hit for hash {image_hash}")
-        return EnhanceJobResponse(job_id=f"cache_{image_hash}", status="COMPLETED")
+        return EnhanceJobResponse(
+            job_id=f"cache_{image_hash}", 
+            status="COMPLETED"
+        )
         
     # Check Active Job
     active_job = db.query(Job).filter(
@@ -93,8 +94,7 @@ async def enhance_image(
         db.add(new_job)
         db.commit()
         
-        background_tasks.add_task(job_manager.poll_job, internal_job_id, runpod_job_id, image_hash)
-        
+        logger.info(f"RunPod submit successful. internal_id={internal_job_id}, runpod_id={runpod_job_id}")
         return EnhanceJobResponse(job_id=internal_job_id, status="QUEUED")
         
     except Exception as e:
@@ -119,6 +119,8 @@ async def get_status(job_id: str, user_id: str = Depends(get_user_id), db: Sessi
                 width=width,
                 height=height
             )
+        else:
+            raise HTTPException(status_code=404, detail="Cache entry not found")
             
     db_job = db.query(Job).filter(Job.job_id == job_id, Job.user_id == user_id).first()
     if not db_job:
@@ -140,4 +142,70 @@ async def get_status(job_id: str, user_id: str = Depends(get_user_id), db: Sessi
                 height=height
             )
             
-    return JobStatusResponse(status=db_job.status)
+    # Poll RunPod live
+    try:
+        status_data = await runpod_client.check_job_status(db_job.runpod_job_id)
+        current_status = status_data.get("status")
+        logger.info(f"RunPod status for {db_job.runpod_job_id}: {current_status}")
+        
+        if current_status == "COMPLETED":
+            logger.info(f"Job {db_job.runpod_job_id} completed. Caching result.")
+            output = status_data.get("output", {})
+            
+            image_bytes = None
+            if isinstance(output, str):
+                image_bytes = base64.b64decode(output)
+            elif isinstance(output, dict):
+                image_b64 = output.get("image_b64") or output.get("image")
+                if image_b64:
+                    image_bytes = base64.b64decode(image_b64)
+                    
+            if image_bytes:
+                await save_cached_image(db, db_job.image_hash, image_bytes)
+                db_job.status = "COMPLETED"
+                db.commit()
+                
+                try:
+                    img = Image.open(BytesIO(image_bytes))
+                    width, height = img.size
+                except Exception:
+                    width, height = None, None
+                
+                return JobStatusResponse(
+                    status="COMPLETED",
+                    image_base64=base64.b64encode(image_bytes).decode('utf-8'),
+                    width=width,
+                    height=height
+                )
+            else:
+                db_job.status = "FAILED"
+                db.commit()
+                return JobStatusResponse(status="FAILED", error="RunPod returned COMPLETED but no image found in output")
+                
+        elif current_status in ["FAILED", "CANCELLED"]:
+            logger.error(
+                "RunPod job %s failed.\nFull response:\n%s",
+                db_job.runpod_job_id,
+                status_data
+            )
+            db_job.status = "FAILED"
+            db.commit()
+            
+            return JobStatusResponse(
+                status="FAILED",
+                error=status_data.get("error", "RunPod job failed")
+            )
+            
+        else:
+            # QUEUED, IN_PROGRESS
+            if current_status != db_job.status:
+                db_job.status = current_status
+                db.commit()
+                
+            return JobStatusResponse(status=current_status)
+            
+    except Exception as e:
+        logger.exception("Error checking job %s: %s", db_job.runpod_job_id, e)
+        # If check fails but DB status is known, we can just return it or throw an error.
+        # It's better to just return the DB status for now if RunPod is temporarily unreachable.
+        return JobStatusResponse(status=db_job.status)

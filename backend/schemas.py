@@ -10,6 +10,7 @@ class JobStatusResponse(BaseModel):
     image_base64: Optional[str] = None
     width: Optional[int] = None
     height: Optional[int] = None
+    error: Optional[str] = None
 
 class EnhanceParams(BaseModel):
     sharpen_amount: Optional[float] = None
