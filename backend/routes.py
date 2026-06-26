@@ -98,7 +98,7 @@ async def enhance_image(
         return EnhanceJobResponse(job_id=internal_job_id, status="QUEUED")
         
     except Exception as e:
-        logger.error(f"Failed to submit job: {e}")
+        logger.exception("Failed to submit job: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/status/{job_id}", response_model=JobStatusResponse)

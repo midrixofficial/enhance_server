@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_RUNPOD_JOBS: int = 2
     CACHE_ENABLED: bool = True
     ALLOWED_IMAGE_TYPES: list[str] = ["image/jpeg", "image/png", "image/webp"]
+    DEBUG: bool = False
     
     BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
     UPLOADS_DIR: str = os.path.join(BASE_DIR, "uploads")

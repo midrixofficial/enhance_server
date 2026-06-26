@@ -21,6 +21,11 @@ class RunPodClient:
             try:
                 for attempt in range(3):
                     try:
+                        logger.info(
+                            "Submitting RunPod job. Image length=%d Output=%s",
+                            len(input_data.get("image", "")),
+                            input_data.get("output_format")
+                        )
                         response = await client.post(
                             f"{self.base_url}/run",
                             headers=self.headers,
@@ -29,6 +34,9 @@ class RunPodClient:
                         )
                         response.raise_for_status()
                         data = response.json()
+                        logger.info("RunPod submit response: %s", data)
+                        if "id" not in data:
+                            raise ValueError(f"Missing 'id' in RunPod response: {data}")
                         return data.get("id")
                     except httpx.HTTPError as e:
                         logger.warning(f"RunPod submission attempt {attempt+1} failed: {e}")
@@ -36,7 +44,7 @@ class RunPodClient:
                             raise
                         await asyncio.sleep(1)
             except Exception as e:
-                logger.error(f"RunPod submission failed: {e}")
+                logger.exception("RunPod submission failed: %s", e)
                 raise
 
     async def check_job_status(self, job_id: str) -> dict:
@@ -50,13 +58,15 @@ class RunPodClient:
                             timeout=10.0
                         )
                         response.raise_for_status()
-                        return response.json()
+                        status = response.json()
+                        logger.info("RunPod status response for %s: %s", job_id, status)
+                        return status
                     except httpx.HTTPError as e:
                         if attempt == 2:
                             raise
                         await asyncio.sleep(1)
             except Exception as e:
-                logger.error(f"RunPod status check failed: {e}")
+                logger.exception("RunPod status check failed: %s", e)
                 raise
 
 runpod_client = RunPodClient()

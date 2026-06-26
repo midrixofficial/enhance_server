@@ -25,8 +25,10 @@ class JobManager:
                     image_bytes = None
                     if isinstance(output, str):
                         image_bytes = base64.b64decode(output)
-                    elif isinstance(output, dict) and "image" in output:
-                        image_bytes = base64.b64decode(output["image"])
+                    elif isinstance(output, dict):
+                        image_b64 = output.get("image_b64") or output.get("image")
+                        if image_b64:
+                            image_bytes = base64.b64decode(image_b64)
                         
                     if image_bytes:
                         db = SessionLocal()
@@ -41,7 +43,11 @@ class JobManager:
                     break
                     
                 elif status in ["FAILED", "CANCELLED"]:
-                    logger.error(f"Job {runpod_job_id} failed or cancelled")
+                    logger.error(
+                        "RunPod job %s failed.\nFull response:\n%s",
+                        runpod_job_id,
+                        status_data
+                    )
                     db = SessionLocal()
                     try:
                         db_job = db.query(Job).filter(Job.job_id == internal_job_id).first()
@@ -53,7 +59,7 @@ class JobManager:
                     break
                     
             except Exception as e:
-                logger.error(f"Error polling job {runpod_job_id}: {e}")
+                logger.exception("Error polling job %s: %s", runpod_job_id, e)
             
             await asyncio.sleep(2)
         else:

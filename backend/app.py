@@ -12,9 +12,10 @@ os.makedirs(settings.OUTPUTS_DIR, exist_ok=True)
 os.makedirs(settings.LOGS_DIR, exist_ok=True)
 
 # Setup logging
+log_level = logging.DEBUG if settings.DEBUG else logging.INFO
 logging.basicConfig(
     filename=os.path.join(settings.LOGS_DIR, "app.log"),
-    level=logging.INFO,
+    level=log_level,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 
