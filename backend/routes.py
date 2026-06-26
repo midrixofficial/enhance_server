@@ -70,7 +70,7 @@ async def enhance_image(
     # Submit to RunPod
     try:
         input_data = {
-            "image": base64.b64encode(image_bytes).decode('utf-8'),
+            "image_b64": base64.b64encode(image_bytes).decode('utf-8'),
             "sharpen_amount": sharpen_amount,
             "contrast_alpha": contrast_alpha,
             "brightness_beta": brightness_beta,

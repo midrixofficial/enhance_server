@@ -22,8 +22,8 @@ class RunPodClient:
                 for attempt in range(3):
                     try:
                         logger.info(
-                            "Submitting RunPod job. Image length=%d Output=%s",
-                            len(input_data.get("image", "")),
+                            "Submitting RunPod job. image_b64 length=%d Output=%s",
+                            len(input_data.get("image_b64", "")),
                             input_data.get("output_format")
                         )
                         response = await client.post(
