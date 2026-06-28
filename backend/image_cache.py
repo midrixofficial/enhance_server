@@ -12,15 +12,14 @@ async def get_cached_image(db: Session, image_hash: str):
         return None
     cache_entry = db.query(ImageCache).filter(ImageCache.image_hash == image_hash).first()
     if cache_entry and os.path.exists(cache_entry.file_path):
-        async with aiofiles.open(cache_entry.file_path, 'rb') as f:
-            return await f.read()
+        return cache_entry.file_path
     return None
 
 async def save_cached_image(db: Session, image_hash: str, image_bytes: bytes) -> str:
     if not settings.CACHE_ENABLED:
         return ""
     
-    file_path = os.path.join(settings.OUTPUTS_DIR, f"{image_hash}.png")
+    file_path = os.path.join(settings.OUTPUTS_DIR, f"{image_hash}.jpg")
     async with aiofiles.open(file_path, 'wb') as f:
         await f.write(image_bytes)
         

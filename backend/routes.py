@@ -131,17 +131,17 @@ async def enhance_image(
 async def get_status(job_id: str, user_id: str = Depends(get_user_id), db: Session = Depends(get_db)):
     if job_id.startswith("cache_"):
         image_hash = job_id.replace("cache_", "")
-        cached_result = await get_cached_image(db, image_hash)
-        if cached_result:
+        cached_result_path = await get_cached_image(db, image_hash)
+        if cached_result_path:
             try:
-                img = Image.open(BytesIO(cached_result))
+                img = Image.open(cached_result_path)
                 width, height = img.size
             except Exception:
                 width, height = None, None
                 
             return JobStatusResponse(
                 status="COMPLETED",
-                image_base64=base64.b64encode(cached_result).decode('utf-8'),
+                image_url=f"https://clarityix.midrix.com/images/{image_hash}.jpg",
                 width=width,
                 height=height
             )
@@ -153,17 +153,17 @@ async def get_status(job_id: str, user_id: str = Depends(get_user_id), db: Sessi
         raise HTTPException(status_code=404, detail="Job not found")
         
     if db_job.status == "COMPLETED":
-        cached_result = await get_cached_image(db, db_job.image_hash)
-        if cached_result:
+        cached_result_path = await get_cached_image(db, db_job.image_hash)
+        if cached_result_path:
             try:
-                img = Image.open(BytesIO(cached_result))
+                img = Image.open(cached_result_path)
                 width, height = img.size
             except Exception:
                 width, height = None, None
                 
             return JobStatusResponse(
                 status="COMPLETED",
-                image_base64=base64.b64encode(cached_result).decode('utf-8'),
+                image_url=f"https://clarityix.midrix.com/images/{db_job.image_hash}.jpg",
                 width=width,
                 height=height
             )
@@ -199,7 +199,7 @@ async def get_status(job_id: str, user_id: str = Depends(get_user_id), db: Sessi
                 
                 return JobStatusResponse(
                     status="COMPLETED",
-                    image_base64=base64.b64encode(image_bytes).decode('utf-8'),
+                    image_url=f"https://clarityix.midrix.com/images/{db_job.image_hash}.jpg",
                     width=width,
                     height=height
                 )

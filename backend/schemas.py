@@ -7,7 +7,7 @@ class EnhanceJobResponse(BaseModel):
 
 class JobStatusResponse(BaseModel):
     status: str
-    image_base64: Optional[str] = None
+    image_url: Optional[str] = None
     width: Optional[int] = None
     height: Optional[int] = None
     error: Optional[str] = None
