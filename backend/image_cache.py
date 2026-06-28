@@ -23,9 +23,19 @@ async def save_cached_image(db: Session, image_hash: str, image_bytes: bytes) ->
     if not settings.CACHE_ENABLED:
         return ""
     
+    try:
+        from PIL import Image
+        from io import BytesIO
+        img = Image.open(BytesIO(image_bytes))
+        extension = img.format.lower()
+        if extension == "jpeg":
+            extension = "jpg"
+    except Exception:
+        extension = "png"
+        
     logger.info("Ensuring output directory exists: %s", settings.OUTPUTS_DIR)
     os.makedirs(settings.OUTPUTS_DIR, exist_ok=True)
-    file_path = os.path.join(settings.OUTPUTS_DIR, f"{image_hash}.jpg")
+    file_path = os.path.join(settings.OUTPUTS_DIR, f"{image_hash}.{extension}")
     
     logger.info("Saving enhanced image to %s", file_path)
     try:

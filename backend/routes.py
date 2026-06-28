@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 import uuid
 import base64
 import logging
+import os
 from typing import Optional
 from io import BytesIO
 from PIL import Image
@@ -139,9 +140,11 @@ async def get_status(job_id: str, user_id: str = Depends(get_user_id), db: Sessi
             except Exception:
                 width, height = None, None
                 
+            filename = os.path.basename(cached_result_path)
+            image_url = f"{settings.PUBLIC_IMAGE_BASE_URL}/{filename}"
             return JobStatusResponse(
                 status="COMPLETED",
-                image_url=f"https://clarityix.midrix.com/images/{image_hash}.jpg",
+                image_url=image_url,
                 width=width,
                 height=height
             )
@@ -161,9 +164,11 @@ async def get_status(job_id: str, user_id: str = Depends(get_user_id), db: Sessi
             except Exception:
                 width, height = None, None
                 
+            filename = os.path.basename(cached_result_path)
+            image_url = f"{settings.PUBLIC_IMAGE_BASE_URL}/{filename}"
             return JobStatusResponse(
                 status="COMPLETED",
-                image_url=f"https://clarityix.midrix.com/images/{db_job.image_hash}.jpg",
+                image_url=image_url,
                 width=width,
                 height=height
             )
@@ -188,7 +193,7 @@ async def get_status(job_id: str, user_id: str = Depends(get_user_id), db: Sessi
                     
             if image_bytes:
                 try:
-                    await save_cached_image(db, db_job.image_hash, image_bytes)
+                    file_path = await save_cached_image(db, db_job.image_hash, image_bytes)
                 except Exception:
                     logger.exception("Failed to save image from RunPod for job %s", db_job.runpod_job_id)
                     db_job.status = "FAILED"
@@ -204,9 +209,18 @@ async def get_status(job_id: str, user_id: str = Depends(get_user_id), db: Sessi
                 except Exception:
                     width, height = None, None
                 
+                filename = os.path.basename(file_path)
+                image_url = f"{settings.PUBLIC_IMAGE_BASE_URL}/{filename}"
+                logger.info(
+                    "Saved file:\n%s\nReturned URL:\n%s\nExists:\n%s",
+                    file_path,
+                    image_url,
+                    os.path.exists(file_path)
+                )
+                
                 return JobStatusResponse(
                     status="COMPLETED",
-                    image_url=f"https://clarityix.midrix.com/images/{db_job.image_hash}.jpg",
+                    image_url=image_url,
                     width=width,
                     height=height
                 )

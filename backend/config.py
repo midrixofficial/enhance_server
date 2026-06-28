@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     CACHE_ENABLED: bool = True
     ALLOWED_IMAGE_TYPES: list[str] = ["image/jpeg", "image/png", "image/webp"]
     DEBUG: bool = False
+    PUBLIC_IMAGE_BASE_URL: str = "https://clarityix.midrix.com/images"
     
     BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
     UPLOADS_DIR: str = os.path.join(BASE_DIR, "uploads")
