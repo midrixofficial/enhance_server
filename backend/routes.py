@@ -44,13 +44,21 @@ async def enhance_image(
         user_id
     )
 
-    if image.content_type not in settings.ALLOWED_IMAGE_TYPES:
-        logger.error(
-            "Rejected upload: content_type=%s allowed=%s",
+    try:
+        img = Image.open(BytesIO(image_bytes))
+        img.verify()
+        logger.info(
+            "Upload: filename=%s reported=%s detected=%s",
+            image.filename,
             image.content_type,
-            settings.ALLOWED_IMAGE_TYPES
+            img.format
         )
-        raise HTTPException(status_code=400, detail="Unsupported image format")
+    except Exception:
+        logger.error(
+            "Rejected upload: content_type=%s invalid image file",
+            image.content_type
+        )
+        raise HTTPException(status_code=400, detail="Invalid image file")
         
     if len(image_bytes) > settings.MAX_UPLOAD_MB * 1024 * 1024:
         logger.error(
