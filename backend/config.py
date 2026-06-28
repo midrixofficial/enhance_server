@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     
     BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
     UPLOADS_DIR: str = os.path.join(BASE_DIR, "uploads")
-    OUTPUTS_DIR: str = os.path.join(BASE_DIR, "outputs")
+    OUTPUTS_DIR: str = "/var/www/photo_enhancer/outputs"
     LOGS_DIR: str = os.path.join(BASE_DIR, "logs")
 
     class Config:

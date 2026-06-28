@@ -187,7 +187,14 @@ async def get_status(job_id: str, user_id: str = Depends(get_user_id), db: Sessi
                     image_bytes = base64.b64decode(image_b64)
                     
             if image_bytes:
-                await save_cached_image(db, db_job.image_hash, image_bytes)
+                try:
+                    await save_cached_image(db, db_job.image_hash, image_bytes)
+                except Exception:
+                    logger.exception("Failed to save image from RunPod for job %s", db_job.runpod_job_id)
+                    db_job.status = "FAILED"
+                    db.commit()
+                    return JobStatusResponse(status="FAILED", error="Enhanced image was not saved.")
+                    
                 db_job.status = "COMPLETED"
                 db.commit()
                 
