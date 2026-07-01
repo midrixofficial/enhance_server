@@ -2,6 +2,7 @@ import logging
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from .routes import router
 from .database import engine, Base
 from .config import settings
@@ -42,3 +43,8 @@ app.include_router(router)
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+# Mount static files at the root (must be placed after other routes to not override them)
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+os.makedirs(static_dir, exist_ok=True)
+app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
